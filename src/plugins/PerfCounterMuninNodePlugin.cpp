@@ -339,17 +339,8 @@ int PerfCounterMuninNodePlugin::GetConfig(char *buffer, int len)
 
 		std::string graphDraw = g_Config.GetValue(m_SectionName, "GraphDraw", "LINE");
 		std::string counterType = g_Config.GetValue(m_SectionName, "CounterType", "GAUGE");
-
-		std::string minValue;
-		std::string minValueNumbered;
-
-		if (counterType == "DERIVE") {
-			minValue = "%s.min 0\n";
-			minValueNumbered = "%s_%i_.min 0\n";
-		}
-		else {
-			minValue = minValueNumbered = "";
-		}
+		std::string warning = g_Config.GetValue(m_SectionName, "WarningValue", "");
+		std::string critical = g_Config.GetValue(m_SectionName, "CriticalValue", "");
 
 		assert(m_CounterNames.size() == m_Counters.size());
 
@@ -381,43 +372,54 @@ int PerfCounterMuninNodePlugin::GetConfig(char *buffer, int len)
 			_Module.LogEvent("PerfCounter plugin: %s: counter path %ls, %ls", m_Name.c_str(), np, info->CounterPath.szObjectName);
 
 			std::string explainText = info->szExplainText ? W2IConvert(info->szExplainText) : m_CounterNames[i].c_str();
-			if (i == 0) {
+			char* m_finalName = new char[128];
 
-				labels = "%s.label %s\n"
-					"%s.draw %s\n"
-					"%s.type %s\n"
-					"%s.info %s\n";
-				labels += minValue;
+			if (i == 0)
+				_snprintf(m_finalName, 127, "%s", m_Name.c_str());
+			else
+				_snprintf(m_finalName, 127, "%s_%i_", m_Name.c_str(), i);
 
-				// First counter gets a normal name
-				printCount = _snprintf(buffer, len,
-					labels.c_str(),
-					m_Name.c_str(), m_CounterNames[i].c_str(),
-					m_Name.c_str(), graphDraw.c_str(),
-					m_Name.c_str(), counterType.c_str(),
-					m_Name.c_str(), explainText.c_str(),
-					m_Name.c_str());
-			}
-			else {
-				// Rest of the counters are numbered
+			labels = "%s.label %s\n"
+				"%s.draw %s\n"
+				"%s.type %s\n"
+				"%s.info %s\n";
 
-				labels = "%s_%i_.label %s\n"
-					"%s_%i_.draw %s\n"
-					"%s_%i_.type %s\n"
-					"%s_%i_.info %s\n";
-				labels += minValueNumbered;
-
-				printCount = _snprintf(buffer, len,
-					labels.c_str(),
-					m_Name.c_str(), i, m_CounterNames[i].c_str(),
-					m_Name.c_str(), i, graphDraw.c_str(),
-					m_Name.c_str(), i, counterType.c_str(),
-					m_Name.c_str(), i, explainText.c_str(),
-					m_Name.c_str(), i);
-			}
-			free(info);
+			// First counter gets a normal name
+			printCount = _snprintf(buffer, len,
+				labels.c_str(),
+				m_finalName, m_CounterNames[i].c_str(),
+				m_finalName, graphDraw.c_str(),
+				m_finalName, counterType.c_str(),
+				m_finalName, explainText.c_str());
 			len -= printCount;
 			buffer += printCount;
+
+			if (counterType == "DERIVE") {
+				printCount = _snprintf(buffer, len,
+					"%s.min 0\n",
+					m_finalName);
+				len -= printCount;
+				buffer += printCount;
+			}
+
+			if (!warning.empty()) {
+				printCount = _snprintf(buffer, len,
+					"%s.warning %s\n",
+					m_finalName,
+					warning.c_str());
+				len -= printCount;
+				buffer += printCount;
+			}
+			if (!critical.empty()) {
+				printCount = _snprintf(buffer, len,
+					"%s.critical %s\n",
+					m_finalName,
+					critical.c_str());
+				len -= printCount;
+				buffer += printCount;
+			}
+
+			free(info);
 		}
 	}
 
