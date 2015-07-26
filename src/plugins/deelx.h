@@ -539,7 +539,7 @@ template <class T> int CSortedBufferT <T> :: FindAs(const T & rT, int(* compare)
 	const T * pT = (const T *)bsearch(&rT, CBufferRefT<T>::m_pBuffer, CBufferRefT<T>::m_nSize, sizeof(T), compare == 0 ? m_fncompare : compare);
 
 	if( pT != NULL )
-		return pT - CBufferRefT<T>::m_pBuffer;
+		return (int) (pT - CBufferRefT<T>::m_pBuffer);
 	else
 		return -1;
 }
